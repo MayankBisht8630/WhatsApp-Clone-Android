@@ -23,15 +23,22 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TextFieldDefaults.textFieldColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.livechat.DestinationScreen
 import com.example.livechat.LCViewModel
+import com.example.livechat.data.userData
 import com.example.livechat.ui.theme.commonDivider
 import com.example.livechat.ui.theme.commonImage
 import com.example.livechat.ui.theme.commonProgressbar
+import com.example.livechat.ui.theme.navigateTo
 
 @Composable
 fun profile_Screen(navController: NavController, vm: LCViewModel) {
@@ -39,6 +46,13 @@ fun profile_Screen(navController: NavController, vm: LCViewModel) {
     if (inProgress) {
         commonProgressbar()
     } else {
+        val userData = vm.userData.value
+        var name by rememberSaveable {
+            mutableStateOf(userData?.name?:"")
+        }
+        var number by rememberSaveable {
+            mutableStateOf(userData?.number?:"")
+        }
         Column {
             profileContent(
                 modifier = Modifier
@@ -46,13 +60,16 @@ fun profile_Screen(navController: NavController, vm: LCViewModel) {
                     .verticalScroll(rememberScrollState())
                     .padding(8.dp),
                 vm = vm,
-                name = "",
-                number = "",
-                onNameChange = { "" },
-                onNumberChange = { "" },
-                onSave = {},
-                onBack = {},
-                onLogout = {}
+                name = name,
+                number = number,
+                onNameChange = { name = it },
+                onNumberChange = { number = it },
+                onSave = {vm.createOrUpdateProfile(name = name, number = number)},
+                onBack = { navigateTo(navController = navController, route = DestinationScreen.Chat.route) },
+                onLogout = {
+                    vm.logOut()
+                    navigateTo(navController = navController, route = DestinationScreen.Login.route)
+                }
             )
             bottom_Navigation_Menu(
                 selectedItem = bottomNavigationItems.PROFILELIST,

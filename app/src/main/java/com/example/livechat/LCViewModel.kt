@@ -158,4 +158,11 @@ class LCViewModel @Inject constructor(
             }
         }
     }
+
+    fun logOut() {
+        auth.signOut()
+        signIn.value = false
+        userData.value = null
+        eventMutbleState.value = Event("Logged Out")
+    }
 }
