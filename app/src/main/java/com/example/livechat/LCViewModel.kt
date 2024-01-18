@@ -5,14 +5,20 @@ import android.service.autofill.UserData
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
+import androidx.core.text.isDigitsOnly
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavController
+import com.example.livechat.data.CHATS
 import com.example.livechat.data.Event
 import com.example.livechat.data.USER_NODE
+import com.example.livechat.data.chatData
+import com.example.livechat.data.chatUser
 import com.example.livechat.data.userData
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.toObject
+import com.google.firebase.firestore.toObjects
 import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
@@ -24,16 +30,38 @@ class LCViewModel @Inject constructor(
     val db: FirebaseFirestore,
     val storage: FirebaseStorage
 ) : ViewModel() {
+    var inProcessChats = mutableStateOf(false)
     var inProgress = mutableStateOf(false)
     var eventMutbleState = mutableStateOf<Event<String>?>(null)
     var signIn = mutableStateOf(false)
     var userData = mutableStateOf<userData?>(null)
+    val chats = mutableStateOf<List<chatData>>(listOf())
 
     init {
         val currentUser = auth.currentUser
         signIn.value = currentUser != null
         currentUser?.uid?.let {
             getUserData(it)
+        }
+    }
+
+    fun populatsChats() {
+        inProcessChats.value = true
+        db.collection(CHATS).where(
+            Filter.or(
+                Filter.equalTo("user1.userId", userData.value?.userId),
+                Filter.equalTo("user2.userId", userData.value?.userId),
+            )
+        ).addSnapshotListener { value, error ->
+            if (error != null) {
+                handelException(error)
+            }
+            if (value != null) {
+                chats.value = value.documents.mapNotNull {
+                    it.toObject<chatData>()
+                }
+                inProcessChats.value = false
+            }
         }
     }
 
@@ -93,7 +121,7 @@ class LCViewModel @Inject constructor(
     }
 
     fun uploadProfileImage(uri: Uri) {
-        uploadImage(uri){
+        uploadImage(uri) {
             createOrUpdateProfile(imageUrl = it.toString())
         }
     }
@@ -109,7 +137,7 @@ class LCViewModel @Inject constructor(
             result?.addOnSuccessListener(onSuccess)
             inProgress.value = false
         }
-            .addOnFailureListener{
+            .addOnFailureListener {
                 handelException(it)
             }
     }
@@ -131,6 +159,7 @@ class LCViewModel @Inject constructor(
             db.collection(USER_NODE).document(uid).get().addOnSuccessListener {
                 if (it.exists()) {
 //                    update user data
+                    inProgress.value = false
                 } else {
                     db.collection(USER_NODE).document(uid).set(userData)
                     inProgress.value = false
@@ -155,6 +184,8 @@ class LCViewModel @Inject constructor(
                 var user = value.toObject<userData>()
                 userData.value = user
                 inProgress.value = false
+
+                populatsChats()
             }
         }
     }
@@ -164,5 +195,57 @@ class LCViewModel @Inject constructor(
         signIn.value = false
         userData.value = null
         eventMutbleState.value = Event("Logged Out")
+    }
+
+    fun onAddChat(number: String) {
+        if (number.isEmpty() or !number.isDigitsOnly()) {
+            handelException(customMessage = "Number Must Contain Digits Only")
+        } else {
+            db.collection(CHATS).where(
+                Filter.or(
+                    Filter.and(
+                        Filter.equalTo("user1.number", number),
+                        Filter.equalTo("user2.number", userData.value?.number)
+                    ),
+                    Filter.and(
+                        Filter.equalTo("user1.number", userData.value?.number),
+                        Filter.equalTo("user2.number", number)
+                    )
+                )
+            ).get().addOnSuccessListener {
+                if (it.isEmpty) {
+                    db.collection(USER_NODE).whereEqualTo("number", number).get()
+                        .addOnSuccessListener {
+                            if (it.isEmpty) {
+                                handelException(customMessage = "Number Not Found")
+                            } else {
+                                val chatPatners = it.toObjects<userData>()[0]
+                                val id = db.collection(CHATS).document().id
+                                val chat = chatData(
+                                    chatId = id,
+                                    chatUser(
+                                        userData.value?.userId,
+                                        userData.value?.name,
+                                        userData.value?.imageUrl,
+                                        userData.value?.number
+                                    ),
+                                    chatUser(
+                                        chatPatners.userId,
+                                        chatPatners.name,
+                                        chatPatners.imageUrl,
+                                        chatPatners.number
+                                    )
+                                )
+                                db.collection(CHATS).document(id).set(chat)
+                            }
+                        }
+                        .addOnFailureListener {
+                            handelException(it)
+                        }
+                } else {
+                    handelException(customMessage = "Chat Already Exist !!")
+                }
+            }
+        }
     }
 }

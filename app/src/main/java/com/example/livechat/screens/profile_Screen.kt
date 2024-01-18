@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -53,7 +54,7 @@ fun profile_Screen(navController: NavController, vm: LCViewModel) {
         var number by rememberSaveable {
             mutableStateOf(userData?.number?:"")
         }
-        Column {
+        Column{
             profileContent(
                 modifier = Modifier
                     .weight(1f)
@@ -71,11 +72,11 @@ fun profile_Screen(navController: NavController, vm: LCViewModel) {
                     navigateTo(navController = navController, route = DestinationScreen.Login.route)
                 }
             )
-            bottom_Navigation_Menu(
-                selectedItem = bottomNavigationItems.PROFILELIST,
-                navController = navController
-            )
         }
+        bottom_Navigation_Menu(
+            selectedItem = bottomNavigationItems.PROFILELIST,
+            navController = navController
+        )
     }
 }
 
