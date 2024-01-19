@@ -1,8 +1,12 @@
 package com.example.livechat
 
+import android.icu.util.Calendar
 import android.net.Uri
+import android.os.Build
+import android.os.Message
 import android.service.autofill.UserData
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.text.isDigitsOnly
@@ -10,9 +14,11 @@ import androidx.lifecycle.ViewModel
 import androidx.navigation.NavController
 import com.example.livechat.data.CHATS
 import com.example.livechat.data.Event
+import com.example.livechat.data.MESSAGE
 import com.example.livechat.data.USER_NODE
 import com.example.livechat.data.chatData
 import com.example.livechat.data.chatUser
+import com.example.livechat.data.message
 import com.example.livechat.data.userData
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.Filter
@@ -63,6 +69,13 @@ class LCViewModel @Inject constructor(
                 inProcessChats.value = false
             }
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.N)
+    fun onSendReply(chatId: String, message: String) {
+        val time = Calendar.getInstance().time.toString()
+        val message = message(userData.value?.userId, message, time)
+        db.collection(CHATS).document(chatId).collection(MESSAGE).document().set(message)
     }
 
     fun signUp(name: String, number: String, email: String, password: String) {
